@@ -22,6 +22,7 @@
     <classEntry path="org.flexunit.asserts.assertNull"/>
     <classEntry path="org.flexunit.asserts.assertStrictlyEquals"/>
     <classEntry path="org.flexunit.asserts.assertTrue"/>
+    <classEntry path="org.flexunit.asserts.assertEventuallyEquals"/>
     <classEntry path="org.flexunit.asserts.fail"/>
     <classEntry path="org.flexunit.assumeThat"/>
     <classEntry path="org.flexunit.async.Async"/>

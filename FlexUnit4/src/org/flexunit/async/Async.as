@@ -27,12 +27,14 @@
  **/ 
 package org.flexunit.async
 {
+	import org.flexunit.Assert;
+	import org.flexunit.internals.runners.statements.IAsyncHandlingStatement;
+	import flash.events.Event;
+	import flash.events.EventDispatcher;
 	import flash.events.IEventDispatcher;
 	import flash.events.TimerEvent;
 	import flash.net.Responder;
 	import flash.utils.Timer;
-	
-	import org.flexunit.internals.runners.statements.IAsyncHandlingStatement;
 	
 	/**
 	 * The <code>Async</code> class contains static methods used in the handling of events in asynchronous
@@ -235,5 +237,50 @@ package org.flexunit.async
 			timer.addEventListener( TimerEvent.TIMER_COMPLETE, handler, false, 0, true );
 			timer.start();
 		}
+
+		/**
+		 * Asserts that the supplied assertion function delegate eventually matches the expected value before the 
+		 * supplied timeout elapses
+		 * @param testCase The current asynchronous test case.
+		 * @param message The message that will be shown if the assertion fails.
+		 * @param expected The expected value.
+		 * @param assertionFunction Function delegate that returns the value under test.
+		 * @param timeout The length of time, in milliseconds, before the assertion is failed if the result of the
+		 * assertion function does not match the expcted value.
+		 */		
+		public static function assertEventuallyEquals(testCase : Object, message : String, expected : *, assertionFunction : Function, timeout : Number = 500) : void
+		{
+			// Used to notify the asyncHandlingStatement that we have complete the positive assertion.
+			var assertionCompleteDispatcher : EventDispatcher = new EventDispatcher();
+			
+			// Retrieve the AsyncHandler object.
+			var asyncHandlingStatement:IAsyncHandlingStatement = AsyncLocator.getCallableForTest( testCase );
+			
+			// This method will perform the actual FlexUnit assertion and pass / fail the testcase.
+			var assertionHander : Function = asyncHandlingStatement.asyncHandler(function(event : Event, passThru : Object) : void {
+				Assert.assertEquals(message, expected, assertionFunction.apply());
+			}, timeout + 100.0, null, function() : void {
+				Assert.fail(message + " - expected <" + expected + "> was <" + assertionFunction.apply() + "> after " + timeout + "ms"); 
+			});
+			
+			// Wire the complete eventDispatcher up to the assertionHandler.
+			assertionCompleteDispatcher.addEventListener(Event.COMPLETE, assertionHander);
+			
+			// This timer is used to continually poll the assertionFunction.
+			var assertionPoller:Timer = new Timer(20, (timeout / 20));
+			assertionPoller.addEventListener(TimerEvent.TIMER, function(event : TimerEvent) : void 
+			{
+				// Perform a 'soft' assertion; if it does match then notify the assertionHandler via the
+				// eventDispatcher (there must be a cleaner way to do this?)
+				 if (assertionFunction.apply() == expected) 
+				 {
+				 	assertionPoller.stop();
+				 	assertionCompleteDispatcher.dispatchEvent(new Event(Event.COMPLETE));
+				 }
+			}, false, 0, true);
+
+			// Start checking the assertion.
+			assertionPoller.start();
+		}		
 	}
 }
